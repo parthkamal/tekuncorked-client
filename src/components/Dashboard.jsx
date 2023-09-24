@@ -1,43 +1,142 @@
 import React, { useEffect, useState } from 'react';
 import WebSocketService from '../WebSocketService';
+import Device from '../components/Device';
+import Slider from '@mui/material/Slider';
+import '../App.css';
 
 const Dashboard = () => {
-    const [data, setData] = useState(null);
+    const [deviceList, setDeviceList] = useState([]);
+    const [warningThreshold, setWarningThreshold] = useState(0);
+    const [alertThreshold, setAlertThreshold] = useState(0);
+    const [normal, setNormal] = useState(0);
+    const [warning, setWarning] = useState(0);
+    const [alert, setAlert] = useState(0);
 
     useEffect(() => {
-
         const websocket = WebSocketService;
         websocket.connect();
 
         websocket.subscribe('data', (data) => {
-            setData(data);
-        })
+            console.log('got data from the server');
+            setDeviceList(data.devices);
+        });
 
         websocket.subscribe('data-created', (data) => {
-            setData(data);
-        })
+            console.log('device created');
+            console.log(data);
+            setDeviceList(data);
+        });
 
         websocket.subscribe('data-updated', (data) => {
-            setData(data);
-        })
+            console.log('device updated');
+            setDeviceList(data.devices);
+        });
+
+        websocket.subscribe('data-deleted', (data) => {
+            console.log('devices deleted');
+            setDeviceList(data.devices);
+        });
 
         return () => {
             websocket.disconnect();
         };
-
     }, []);
 
+    useEffect(() => {
+        configureStatus();
+    }, [warningThreshold, alertThreshold,deviceList]);
+
+    const configureStatus = () => {
+        let newNormal = 0;
+        let newWarning = 0;
+        let newAlert = 0;
+
+        deviceList.forEach((device) => {
+            const { temperature1, temperature2, temperature3 } = device;
+            const maxTemperature = Math.max(temperature1, temperature2, temperature3);
+
+            if (maxTemperature >= alertThreshold) {
+                newAlert++;
+            } else if (maxTemperature >= warningThreshold) {
+                newWarning++;
+            } else {
+                newNormal++;
+            }
+        });
+
+        setNormal(newNormal);
+        setWarning(newWarning);
+        setAlert(newAlert);
+    };
+
+
+    const deviceComponents = deviceList.map((device, index) => (
+        <Device key={device._id}
+            device={device}
+            setNormal={setNormal}
+            setWarning={setWarning}
+            setAlert={setAlert}
+            warningThreshold={warningThreshold}
+            alertThreshold={alertThreshold}
+            deviceList={deviceList}
+        />
+    ));
+
+    const handleWarningThreshold = (e) => {
+        const newWarningThreshold = e.target.value;
+        setWarningThreshold(newWarningThreshold);
+    };
+
+    const handleAlertThreshold = (e) => {
+        const newAlertThreshold = e.target.value;
+        setAlertThreshold(newAlertThreshold);
+    };
+
     return (
-        <div>
-            <p>Hello, this is your dashboard!</p>
-            {data && (
-                <div>
-                    <p>Data from the server:</p>
-                    <pre>{JSON.stringify(data, null, 2)}</pre>
+        <div className='dashboard-outer'>
+            <div className='threshold-outer'>
+                <div className='threshold-heading'>{"set threshold here: warning <= alert "}</div>
+                <div className='threshold'>
+                    warning: {warningThreshold} <Slider
+                        value={warningThreshold}
+                        onChange={handleWarningThreshold}
+                        min={0}
+                        valueLabelDisplay="auto"
+                        max={100}
+
+                    />
                 </div>
-            )}
+
+                <div className='threshold'>
+                    alert: {alertThreshold} <Slider
+                        value={alertThreshold}
+                        onChange={handleAlertThreshold}
+                        min={0}
+                        valueLabelDisplay="auto"
+                        max={100}
+                    />
+                </div>
+
+            </div>
+
+            <div className='status-outer'>
+                <div className='normal-btn'>Normal : {normal}</div>
+                <div className='warning-btn'>Warning : {warning}</div>
+                <div className='alert-btn'>Alert : {alert}</div>
+            </div>
+
+
+            <p>Devices dashboard</p>
+
+            <div className='device-outer'>
+                {
+
+                    deviceList ? (deviceComponents) : <></>
+                }
+            </div>
         </div>
     );
-}
+};
 
 export default Dashboard;
+
