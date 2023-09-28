@@ -23,8 +23,8 @@ const Dashboard = () => {
 
         websocket.subscribe('data-created', (data) => {
             console.log('device created');
-            console.log(data);
-            setDeviceList(data);
+            console.log(data.devices);
+            setDeviceList(data.devices);
         });
 
         websocket.subscribe('data-updated', (data) => {
@@ -43,6 +43,7 @@ const Dashboard = () => {
     }, []);
 
     useEffect(() => {
+        console.log('device list change hui ')
         configureStatus();
     }, [warningThreshold, alertThreshold,deviceList]);
 
